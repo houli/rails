@@ -174,6 +174,20 @@ end
 
 ActiveSupport.on_load(:active_record) do
   Arel::Table.engine = self
+
+  module RelationExtensions
+    private def build_select(arel)
+      if select_values.any?
+        arel.project(*arel_columns(select_values.uniq))
+      elsif klass.ignored_columns.any?
+        arel.project(*klass.column_names.map { |field| arel_attribute(field) })
+      else
+        arel.project(@klass.arel_table[Arel.star])
+      end
+    end
+  end
+
+  ActiveRecord::Relation.prepend(RelationExtensions)
 end
 
 ActiveSupport.on_load(:i18n) do

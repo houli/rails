@@ -1557,4 +1557,35 @@ class BasicsTest < ActiveRecord::TestCase
     assert_equal(%w(first_name last_name), Developer.ignored_columns)
     assert_equal(%w(first_name last_name), SymbolIgnoredDeveloper.ignored_columns)
   end
+
+  test "when #reload called, ignored columns' attribute methods are not defined" do
+    developer = Developer.create!(name: "Developer")
+    refute developer.respond_to?(:first_name)
+    refute developer.respond_to?(:first_name=)
+
+    developer.reload
+
+    refute developer.respond_to?(:first_name)
+    refute developer.respond_to?(:first_name=)
+  end
+
+  test "ignored columns not included in SELECT" do
+    query = Developer.all.to_sql
+    # ignored column
+    refute query.include?("first_name")
+    # regular column
+    assert query.include?("name")
+  end
+
+  test "column names are quoted when using #from clause and model has ignored columns" do
+    refute_empty Developer.ignored_columns
+    query = Developer.from("developers").to_sql
+    quoted_id = "#{Developer.quoted_table_name}.#{Developer.quoted_primary_key}"
+
+    assert_match(/SELECT #{quoted_id}.* FROM developers/, query)
+  end
+
+  test "using table name qualified column names unless having SELECT list explicitly" do
+    assert_equal developers(:david), Developer.from("developers").joins(:shared_computers).take
+  end
 end
